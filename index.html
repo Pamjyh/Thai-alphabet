@@ -368,15 +368,50 @@
       border: none;
     }
     .flashcard.fade-out { opacity: 0; transform: translateY(8px); }
-    .flashcard .big-char  { font-size: 7.5rem; font-weight: 700; line-height: 1; margin-bottom: 14px; color: var(--ink); }
+    .flashcard .big-char  { font-size: 7.5rem; font-weight: 700; line-height: 1; margin-bottom: 8px; color: var(--ink); }
     .flashcard .card-emoji{ font-size: 3rem; margin-bottom: 8px; }
     .flashcard .card-name { font-size: 24px; font-weight: 700; color: var(--ink); margin-bottom: 4px; line-height: 1.45; }
     .flashcard .card-ex   { font-size: 14px; font-weight: 330; color: #444; letter-spacing: -0.14px; }
     .flashcard .card-ex .ex-word { font-weight: 700; color: var(--ink); font-size: 15px; }
     .flashcard.inv .big-char, .flashcard.inv .card-name,
     .flashcard.inv .card-ex, .flashcard.inv .card-ex .ex-word { color: var(--inverse-ink); }
+    /* Practice mode: show only the character */
+    .flashcard .card-emoji,
+    .flashcard .card-name,
+    .flashcard .card-ex    { display: none; }
 
     .practice-btns { display: flex; flex-direction: column; gap: 8px; }
+
+    /* Record button */
+    .btn-record {
+      background: var(--ink); color: var(--on-primary);
+      font-size: 20px; min-height: 64px; border-radius: var(--r-pill);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      border: none; cursor: pointer; transition: transform 0.1s, background 0.2s;
+      width: 100%;
+    }
+    .btn-record:active { transform: scale(0.97); }
+    .btn-record.listening {
+      background: #e53935; animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(229,57,53,.4); }
+      50%      { box-shadow: 0 0 0 12px rgba(229,57,53,0); }
+    }
+    /* Feedback */
+    .feedback-msg {
+      text-align: center; font-size: 18px; font-weight: 700;
+      padding: 10px 16px; border-radius: var(--r-md);
+      display: none;
+    }
+    .feedback-msg.correct { background: #d4edda; color: #155724; }
+    .feedback-msg.wrong   { background: #f8d7da; color: #721c24; }
+    .btn-skip {
+      background: transparent; border: 1.5px solid var(--hairline);
+      color: #888; font-size: 14px; border-radius: var(--r-pill);
+      padding: 8px 20px; cursor: pointer; align-self: center;
+    }
+    .no-speech-note { font-size: 13px; color: #999; text-align: center; }
 
     /* Completion */
     .completion-screen { text-align: center; padding: 48px 24px; display: none; }
@@ -452,7 +487,7 @@
 
       <div class="set-selector">
         <button class="set-btn active-set" id="set-btn-cons" onclick="setMode('consonants')">พยัญชนะ (44)</button>
-        <button class="set-btn" id="set-btn-vow" onclick="setMode('vowels')">สระ (17)</button>
+        <button class="set-btn" id="set-btn-vow" onclick="setMode('vowels')">สระ (32)</button>
       </div>
 
       <div class="progress-info">
@@ -471,8 +506,13 @@
       </div>
 
       <div class="practice-btns" id="practice-btns">
-        <button class="btn btn-secondary btn-full btn-lg" onclick="replayAudio()">🔊 ฟังอีกครั้ง</button>
-        <button class="btn btn-primary btn-full btn-lg" id="next-btn" onclick="nextCard()">อ่านได้แล้ว →</button>
+        <button class="btn btn-secondary btn-full" onclick="replayAudio()">🔊 ฟังอีกครั้ง</button>
+        <button class="btn-record" id="record-btn" onclick="startRecording()">🎙️ กดแล้วพูด</button>
+        <div class="feedback-msg" id="feedback-msg"></div>
+        <div class="no-speech-note" id="no-speech-note" style="display:none">
+          เบราว์เซอร์นี้ไม่รองรับการฟังเสียง
+        </div>
+        <button class="btn-skip" id="next-btn" onclick="nextCard()">ข้าม →</button>
       </div>
 
       <div class="completion-screen" id="completion-screen">
@@ -523,7 +563,7 @@ const CONSONANTS = [
   { char:"ฉ",  name:"ฉอ ฉิ่ง",      example:"ฉิ่ง",     emoji:"🎵"  },
   { char:"ช",  name:"ชอ ช้าง",      example:"ช้าง",     emoji:"🐘"  },
   { char:"ซ",  name:"ซอ โซ่",       example:"โซ่",      emoji:"⛓️" },
-  { char:"ฌ",  name:"ชอ เฌอ",       example:"เฌอ",      emoji:"🌳"  },
+  { char:"ฌ",  name:"ชอ เฌอ",       example:"เฌอ",      emoji:"🌳",  speakText:"ชอ เชอ อ่านว่า ชอ"    },
   { char:"ญ",  name:"ยอ หญิง",      example:"หญิง",     emoji:"👧"  },
   { char:"ฎ",  name:"ดอ ชฎา",       example:"ชฎา",      emoji:"👑"  },
   { char:"ฏ",  name:"ตอ ปฏัก",      example:"ปฏัก",     emoji:"🏹"  },
@@ -550,7 +590,7 @@ const CONSONANTS = [
   { char:"ล",  name:"ลอ ลิง",       example:"ลิง",      emoji:"🐒"  },
   { char:"ว",  name:"วอ แหวน",      example:"แหวน",     emoji:"💍"  },
   { char:"ศ",  name:"สอ ศาลา",      example:"ศาลา",     emoji:"🏛️" },
-  { char:"ษ",  name:"สอ ฤๅษี",      example:"ฤๅษี",     emoji:"🧙"  },
+  { char:"ษ",  name:"สอ ฤๅษี",      example:"ฤๅษี",     emoji:"🧙",  speakText:"สอ รือสี อ่านว่า สอ"  },
   { char:"ส",  name:"สอ เสือ",      example:"เสือ",     emoji:"🐯"  },
   { char:"ห",  name:"หอ หีบ",       example:"หีบ",      emoji:"📦"  },
   { char:"ฬ",  name:"ลอ จุฬา",      example:"จุฬา",     emoji:"✈️" },
@@ -559,23 +599,42 @@ const CONSONANTS = [
 ];
 
 const VOWELS = [
-  { char:"อา",   name:"สระ อา",              example:"กา",    emoji:"🐦", speakText:"สระ อา ตัวอย่าง กา"    },
-  { char:"อิ",   name:"สระ อิ",              example:"กิ่ง",  emoji:"🌿", speakText:"สระ อิ ตัวอย่าง กิ่ง"  },
-  { char:"อี",   name:"สระ อี",              example:"มีด",   emoji:"🗡️",speakText:"สระ อี ตัวอย่าง มีด"   },
-  { char:"อึ",   name:"สระ อึ",              example:"นึก",   emoji:"🤔", speakText:"สระ อึ ตัวอย่าง นึก"   },
-  { char:"อื",   name:"สระ อื",              example:"ลืม",   emoji:"💭", speakText:"สระ อื ตัวอย่าง ลืม"   },
-  { char:"อุ",   name:"สระ อุ",              example:"กุ้ง",  emoji:"🦐", speakText:"สระ อุ ตัวอย่าง กุ้ง"  },
-  { char:"อู",   name:"สระ อู",              example:"หมู",   emoji:"🐷", speakText:"สระ อู ตัวอย่าง หมู"   },
-  { char:"เอ",   name:"สระ เอ",              example:"เสือ",  emoji:"🐯", speakText:"สระ เอ ตัวอย่าง เสือ"  },
-  { char:"แอ",   name:"สระ แอ",              example:"แมว",   emoji:"🐱", speakText:"สระ แอ ตัวอย่าง แมว"   },
-  { char:"โอ",   name:"สระ โอ",              example:"โต",    emoji:"💪", speakText:"สระ โอ ตัวอย่าง โต"    },
-  { char:"เอา",  name:"สระ เอา",             example:"เกา",   emoji:"✋", speakText:"สระ เอา ตัวอย่าง เกา"  },
-  { char:"อำ",   name:"สระ อำ",              example:"ดำ",    emoji:"🖤", speakText:"สระ อำ ตัวอย่าง ดำ"    },
-  { char:"ไอ",   name:"สระ ไอ (ไม้มลาย)",   example:"ไก่",   emoji:"🐔", speakText:"สระ ไอ ไม้มลาย ตัวอย่าง ไก่"  },
-  { char:"ใอ",   name:"สระ ใอ (ไม้ม้วน)",   example:"ใจ",    emoji:"❤️", speakText:"สระ ใอ ไม้ม้วน ตัวอย่าง ใจ"   },
-  { char:"เอีย", name:"สระ เอีย",            example:"เรียน", emoji:"📚", speakText:"สระ เอีย ตัวอย่าง เรียน" },
-  { char:"เอือ", name:"สระ เอือ",            example:"เรือ",  emoji:"⛵", speakText:"สระ เอือ ตัวอย่าง เรือ" },
-  { char:"อัว",  name:"สระ อัว",             example:"ตัว",   emoji:"🐛", speakText:"สระ อัว ตัวอย่าง ตัว"   },
+  // ===== สระเดี่ยวสั้น 9 เสียง =====
+  { char:"อะ",    name:"สระ อะ",              example:"กะทะ",  emoji:"🍳", speakText:"สระ อะ ตัวอย่าง กะทะ"    },
+  { char:"อิ",    name:"สระ อิ",              example:"กิ่ง",  emoji:"🌿", speakText:"สระ อิ ตัวอย่าง กิ่ง"    },
+  { char:"อึ",    name:"สระ อึ",              example:"นึก",   emoji:"🤔", speakText:"สระ อึ ตัวอย่าง นึก"     },
+  { char:"อุ",    name:"สระ อุ",              example:"กุ้ง",  emoji:"🦐", speakText:"สระ อุ ตัวอย่าง กุ้ง"    },
+  { char:"เอะ",   name:"สระ เอะ",             example:"เตะ",   emoji:"⚽", speakText:"สระ เอะ ตัวอย่าง เตะ"    },
+  { char:"แอะ",   name:"สระ แอะ",             example:"แปะ",   emoji:"🩹", speakText:"สระ แอะ ตัวอย่าง แปะ"    },
+  { char:"โอะ",   name:"สระ โอะ",             example:"โต๊ะ",  emoji:"🪑", speakText:"สระ โอะ ตัวอย่าง โต๊ะ"   },
+  { char:"เอาะ",  name:"สระ เอาะ",            example:"เบาะ",  emoji:"🛋️",speakText:"สระ เอาะ ตัวอย่าง เบาะ"  },
+  { char:"เออะ",  name:"สระ เออะ",            example:"เหอะ",  emoji:"😮", speakText:"สระ เออะ ตัวอย่าง เหอะ"  },
+  // ===== สระเดี่ยวยาว 9 เสียง =====
+  { char:"อา",    name:"สระ อา",              example:"กา",    emoji:"🐦", speakText:"สระ อา ตัวอย่าง กา"      },
+  { char:"อี",    name:"สระ อี",              example:"มีด",   emoji:"🗡️",speakText:"สระ อี ตัวอย่าง มีด"     },
+  { char:"อือ",   name:"สระ อือ",             example:"ลืม",   emoji:"💭", speakText:"สระ อือ ตัวอย่าง ลืม"    },
+  { char:"อู",    name:"สระ อู",              example:"หมู",   emoji:"🐷", speakText:"สระ อู ตัวอย่าง หมู"     },
+  { char:"เอ",    name:"สระ เอ",              example:"เมฆ",   emoji:"☁️", speakText:"สระ เอ ตัวอย่าง เมฆ"     },
+  { char:"แอ",    name:"สระ แอ",              example:"แมว",   emoji:"🐱", speakText:"สระ แอ ตัวอย่าง แมว"     },
+  { char:"โอ",    name:"สระ โอ",              example:"โต",    emoji:"💪", speakText:"สระ โอ ตัวอย่าง โต"      },
+  { char:"ออ",    name:"สระ ออ",              example:"พอ",    emoji:"👍", speakText:"สระ ออ ตัวอย่าง พอ"      },
+  { char:"เออ",   name:"สระ เออ",             example:"เธอ",   emoji:"👩", speakText:"สระ เออ ตัวอย่าง เธอ"    },
+  // ===== สระประสม 6 เสียง =====
+  { char:"เอียะ", name:"สระ เอียะ",           example:"เกียะ", emoji:"👟", speakText:"สระ เอียะ ตัวอย่าง เกียะ" },
+  { char:"เอีย",  name:"สระ เอีย",            example:"เรียน", emoji:"📚", speakText:"สระ เอีย ตัวอย่าง เรียน"  },
+  { char:"เอือะ", name:"สระ เอือะ",           example:"เนือะ", emoji:"💬", speakText:"สระ เอือะ ตัวอย่าง เนือะ" },
+  { char:"เอือ",  name:"สระ เอือ",            example:"เรือ",  emoji:"⛵", speakText:"สระ เอือ ตัวอย่าง เรือ"  },
+  { char:"อัวะ",  name:"สระ อัวะ",            example:"มัวะ",  emoji:"🌀", speakText:"สระ อัวะ ตัวอย่าง มัวะ"  },
+  { char:"อัว",   name:"สระ อัว",             example:"ตัว",   emoji:"🐛", speakText:"สระ อัว ตัวอย่าง ตัว"    },
+  // ===== สระเกิน 8 เสียง =====
+  { char:"อำ",    name:"สระ อำ",              example:"ดำ",    emoji:"🖤", speakText:"สระ อำ ตัวอย่าง ดำ"      },
+  { char:"ไอ",    name:"สระ ไอ (ไม้มลาย)",   example:"ไก่",   emoji:"🐔", speakText:"สระ ไอ ไม้มลาย ตัวอย่าง ไก่"   },
+  { char:"ใอ",    name:"สระ ใอ (ไม้ม้วน)",   example:"ใจ",    emoji:"❤️", speakText:"สระ ใอ ไม้ม้วน ตัวอย่าง ใจ"    },
+  { char:"เอา",   name:"สระ เอา",             example:"เกา",   emoji:"✋", speakText:"สระ เอา ตัวอย่าง เกา"    },
+  { char:"ฤ",     name:"สระ ฤ",               example:"ฤดู",   emoji:"🌤️",speakText:"สระ ฤ อ่านว่า รึ ตัวอย่าง รึดู"   },
+  { char:"ฤๅ",    name:"สระ ฤๅ",              example:"ฤๅษี",  emoji:"🧙", speakText:"สระ ฤๅ อ่านว่า รือ ตัวอย่าง รือสี" },
+  { char:"ฦ",     name:"สระ ฦ",               example:"ฦ",     emoji:"📜", speakText:"สระ ฦ อ่านว่า ลึ"         },
+  { char:"ฦๅ",    name:"สระ ฦๅ",              example:"ฦๅ",    emoji:"📜", speakText:"สระ ฦๅ อ่านว่า ลือ"        },
 ];
 
 // Figma color blocks cycling through pastel palette
@@ -823,6 +882,112 @@ function updateCard() {
   // speak() จะถูกเรียกจาก nextCard() และ switchTab() แทน
 }
 
+// ===========================
+//    SPEECH RECOGNITION
+// ===========================
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let isRecording = false;
+let activeRecognition = null;
+
+// เป้าหมายที่เด็กต้องพูด: "กอ" สำหรับพยัญชนะ, "อา" สำหรับสระ
+function getTarget(item) {
+  const words = item.name.split(' ');
+  if (words[0] === 'สระ') {
+    // vowel: "สระ อา" → target "อา", "สระ ไอ (ไม้มลาย)" → "ไอ"
+    return words[1];
+  }
+  return words[0]; // consonant: "กอ ไก่" → "กอ"
+}
+
+function isMatch(recognized, target) {
+  // normalize: strip spaces, lower
+  const norm = s => s.replace(/\s+/g, '');
+  const r = norm(recognized);
+  const t = norm(target);
+  if (r === t) return true;
+  if (r.includes(t)) return true;
+  // allow extra ending (child says "กอ ไก่" when target is "กอ")
+  if (r.startsWith(t)) return true;
+  return false;
+}
+
+function startRecording() {
+  if (isRecording) {
+    // second tap = stop
+    if (activeRecognition) activeRecognition.stop();
+    return;
+  }
+  if (!SR) {
+    document.getElementById('no-speech-note').style.display = 'block';
+    document.getElementById('record-btn').style.display = 'none';
+    return;
+  }
+
+  // play TTS first so child knows what to say
+  replayAudio();
+
+  const rec = new SR();
+  activeRecognition = rec;
+  rec.lang = 'th-TH';
+  rec.continuous = false;
+  rec.interimResults = false;
+  rec.maxAlternatives = 5;
+
+  rec.onstart = () => {
+    isRecording = true;
+    const btn = document.getElementById('record-btn');
+    btn.textContent = '🔴 กำลังฟัง... (แตะเพื่อหยุด)';
+    btn.classList.add('listening');
+    document.getElementById('feedback-msg').style.display = 'none';
+  };
+
+  rec.onresult = (e) => {
+    const items = getPracticeItems();
+    const item  = items[practiceIndex];
+    const target = getTarget(item);
+    let matched = false;
+    // check all alternatives
+    const results = e.results[0];
+    for (let i = 0; i < results.length; i++) {
+      const text = results[i].transcript.trim();
+      if (isMatch(text, target)) { matched = true; break; }
+    }
+    const best = results[0].transcript.trim();
+    if (matched) {
+      showFeedback('เก่งมาก! 🌟', true);
+      setTimeout(() => nextCard(), 900);
+    } else {
+      showFeedback('ลองอีกครั้ง 💪  (ได้ยินว่า "' + best + '")', false);
+    }
+  };
+
+  rec.onerror = (e) => {
+    if (e.error === 'no-speech') {
+      showFeedback('ไม่ได้ยินเสียง — ลองอีกครั้ง', false);
+    } else if (e.error !== 'aborted') {
+      showFeedback('เกิดข้อผิดพลาด: ' + e.error, false);
+    }
+  };
+
+  rec.onend = () => {
+    isRecording = false;
+    activeRecognition = null;
+    const btn = document.getElementById('record-btn');
+    btn.textContent = '🎙️ กดแล้วพูด';
+    btn.classList.remove('listening');
+  };
+
+  rec.start();
+}
+
+function showFeedback(msg, isCorrect) {
+  const el = document.getElementById('feedback-msg');
+  el.textContent = msg;
+  el.className = 'feedback-msg ' + (isCorrect ? 'correct' : 'wrong');
+  el.style.display = 'block';
+  if (!isCorrect) setTimeout(() => { el.style.display = 'none'; }, 2500);
+}
+
 function replayAudio() {
   const item = getPracticeItems()[practiceIndex];
   if (item) speak(getSpeakText(item));
@@ -846,6 +1011,10 @@ function nextCard() {
     document.getElementById('completion-screen').style.display  = 'block';
     return;
   }
+
+  // hide feedback, stop any active recording
+  document.getElementById('feedback-msg').style.display = 'none';
+  if (activeRecognition) { activeRecognition.stop(); }
 
   // พูดก่อน animate — iOS ต้องเรียก speak() ตรงๆ ใน click handler
   practiceIndex++;
@@ -877,6 +1046,14 @@ function restart() {
 //  (ResponsiveVoice ถูกลบออก เพราะไม่ทำงานบน file:// + Safari)
 // ===========================
 renderGrid(CONSONANTS);
+
+// ตรวจสอบ SpeechRecognition support
+if (!SR) {
+  const btn = document.getElementById('record-btn');
+  if (btn) btn.style.display = 'none';
+  const note = document.getElementById('no-speech-note');
+  if (note) note.style.display = 'block';
+}
 
 if (window.speechSynthesis) {
   // โหลดถ้า voices พร้อมแล้ว
